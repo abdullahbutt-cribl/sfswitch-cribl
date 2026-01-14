@@ -321,7 +321,7 @@ def auth_details(request):
 
 			# Build response 
 			response_data = {
-				'job_url': 'https://sfswitch.herokuapp.com/loading/' + str(job.random_id) + '/?noheader=1',
+				'job_url': 'https://stark-island-06113-20440c968776.herokuapp.com/loading/' + str(job.random_id) + '/?noheader=1',
 				'status': 'Success',
 				'success': True
 			}
