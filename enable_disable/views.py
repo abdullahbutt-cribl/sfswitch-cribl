@@ -12,6 +12,7 @@ import json
 import requests
 import datetime
 from time import sleep
+import traceback
 
 
 
@@ -51,7 +52,7 @@ def oauth_response(request):
 
 		oauth_code = request.GET.get('code')
 		environment = request.GET.get('state')
-		access_token = ''
+		access_token = '' # nosec
 		instance_url = ''
 
 		if 'Production' in environment:
@@ -59,7 +60,7 @@ def oauth_response(request):
 		else:
 			login_url = 'https://test.salesforce.com'
 		
-		r = requests.post(login_url + '/services/oauth2/token', headers={ 'content-type':'application/x-www-form-urlencoded'}, data={'grant_type':'authorization_code','client_id': settings.SALESFORCE_CONSUMER_KEY,'client_secret':settings.SALESFORCE_CONSUMER_SECRET,'redirect_uri': settings.SALESFORCE_REDIRECT_URI,'code': oauth_code})
+		r = requests.post(login_url + '/services/oauth2/token', headers={ 'content-type':'application/x-www-form-urlencoded'}, data={'grant_type':'authorization_code','client_id': settings.SALESFORCE_CONSUMER_KEY,'client_secret':settings.SALESFORCE_CONSUMER_SECRET,'redirect_uri': settings.SALESFORCE_REDIRECT_URI,'code': oauth_code}, timeout=60)
 		auth_response = json.loads(r.text)
 
 		if 'error_description' in auth_response:
@@ -73,12 +74,12 @@ def oauth_response(request):
 			org_id = org_id[-18:]
 
 			# get username of the authenticated user
-			r = requests.get(instance_url + '/services/data/v' + str(settings.SALESFORCE_API_VERSION) + '.0/sobjects/User/' + user_id + '?fields=Username', headers={'Authorization': 'OAuth ' + access_token})
+			r = requests.get(instance_url + '/services/data/v' + str(settings.SALESFORCE_API_VERSION) + '.0/sobjects/User/' + user_id + '?fields=Username', headers={'Authorization': 'OAuth ' + access_token}, timeout=60)
 			query_response = json.loads(r.text)
 			username = query_response['Username']
 
 			# get the org name of the authenticated user
-			r = requests.get(instance_url + '/services/data/v' + str(settings.SALESFORCE_API_VERSION) + '.0/sobjects/Organization/' + org_id + '?fields=Name', headers={'Authorization': 'OAuth ' + access_token})
+			r = requests.get(instance_url + '/services/data/v' + str(settings.SALESFORCE_API_VERSION) + '.0/sobjects/Organization/' + org_id + '?fields=Name', headers={'Authorization': 'OAuth ' + access_token}, timeout=60)
 			org_name = json.loads(r.text)['Name']
 
 		login_form = LoginForm(initial={'environment': environment, 'access_token': access_token, 'instance_url': instance_url, 'org_id': org_id, 'username': username, 'org_name':org_name})	
@@ -99,7 +100,7 @@ def oauth_response(request):
 
 			if 'logout' in request.POST:
 
-				r = requests.post(instance_url + '/services/oauth2/revoke', headers={'content-type':'application/x-www-form-urlencoded'}, data={'token': access_token})
+				r = requests.post(instance_url + '/services/oauth2/revoke', headers={'content-type':'application/x-www-form-urlencoded'}, data={'token': access_token}, timeout=60)
 				return HttpResponseRedirect('/logout?instance_prefix=' + instance_url.replace('https://','').replace('.salesforce.com',''))
 
 			if 'get_metadata' in request.POST:
@@ -308,12 +309,14 @@ def auth_details(request):
 			try:
 
 				# get the org name of the authenticated user
-				r = requests.get(job.instance_url + '/services/data/v' + str(settings.SALESFORCE_API_VERSION) + '.0/sobjects/Organization/' + job.org_id + '?fields=Name', headers={'Authorization': 'OAuth ' + job.access_token})
+				r = requests.get(job.instance_url + '/services/data/v' + str(settings.SALESFORCE_API_VERSION) + '.0/sobjects/Organization/' + job.org_id + '?fields=Name', headers={'Authorization': 'OAuth ' + job.access_token}, timeout=60)
 				job.org_name = json.loads(r.text)['Name']
 				job.save()
 
 			# If there is an error, we can live with that.
-			except:
+			except Exception as error:
+				job.error = traceback.format_exc()
+				job.save()
 				pass
 
 			# Run job

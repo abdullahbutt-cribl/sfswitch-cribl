@@ -6,7 +6,7 @@ from suds.client import Client
 from base64 import b64encode, b64decode
 import requests
 import json
-import xml.etree.ElementTree as ET
+from defusedxml import cElementTree as ET
 import os
 import glob
 import datetime
@@ -198,7 +198,7 @@ def get_metadata(job_id):
 			'Authorization': 'Bearer ' + job.access_token
 		}
 
-		flows_query = requests.get(request_url, headers = headers)
+		flows_query = requests.get(request_url, headers = headers, timeout=60)
 
 		if flows_query.status_code == 200 and 'records' in flows_query.json():
 
@@ -315,7 +315,9 @@ def get_metadata(job_id):
 							trigger.save()
 
 					# not in a folder (could be package.xml). Skip record
-					except Exception as error:
+					except Exception as error: # nosec
+						job.error = traceback.format_exc()
+						job.save()
 						continue
 
 				# Delete zip file, no need to store
@@ -445,7 +447,7 @@ def deploy_metadata(deploy_job_id):
 					}
 
 				# Execute patch request to update the flow
-				result = requests.patch(request_url + deploy_component.flow.flow_id + '/', headers = headers, data = json.dumps(flow_update))
+				result = requests.patch(request_url + deploy_component.flow.flow_id + '/', headers = headers, data = json.dumps(flow_update), timeout=60)
 
 				if result.status_code != 200 and result.status_code != 204:
 					deploy_job.status = 'Error'
@@ -585,4 +587,3 @@ def remove_triggers():
         os.remove(f)
     if os.path.exists('triggers'):
         os.rmdir('triggers')
-        
