@@ -15,7 +15,7 @@ TEMPLATE_DEBUG = DEBUG
 THUMBNAIL_DEBUG = DEBUG
 
 ADMINS = (
-    ('Ben Edwards', 'ben@edwards.nz'),
+    ('Cribl EntApps', 'team-bizsystems@cribl.io'),
 )
 
 if IS_HEROKU:
